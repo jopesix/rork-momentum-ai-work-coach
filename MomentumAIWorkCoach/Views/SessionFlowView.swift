@@ -14,21 +14,37 @@ struct SessionFlowView: View {
     @State private var blockDuration: Int = 25
     @State private var appMonitor = AppMonitorService()
 
+    // Session data from Claude
+    @State private var activeSession: WorkSession = WorkSession()
+
     var body: some View {
         ZStack {
             switch currentPhase {
             case .brainDump:
-                BrainDumpView { dump in
+                BrainDumpView(
+                    carryForwardContext: storage.userProfile.lastSessionContext,
+                    activeProjects: storage.activeProjects,
+                    selectedProjectName: activeSession.projectName
+                ) { dump, projectName in
                     brainDump = dump
+                    activeSession.brainDump = dump
+                    activeSession.projectName = projectName
                     withAnimation(.easeInOut(duration: 0.4)) {
                         currentPhase = .activation
                     }
                 }
 
             case .activation:
-                ActivationView(brainDump: brainDump) { newMilestones, duration in
+                ActivationView(
+                    brainDump: brainDump,
+                    projectName: activeSession.projectName
+                ) { newMilestones, duration, startingTask, suggestedMilestones, moOpening in
                     milestones = newMilestones
                     blockDuration = duration
+                    activeSession.startingTask = startingTask
+                    activeSession.suggestedMilestones = suggestedMilestones
+                    activeSession.moOpeningMessage = moOpening
+                    activeSession.milestones = newMilestones
                     sessionStartTime = Date()
                     appMonitor.startMonitoring()
                     AppMonitorService.requestNotificationPermission()
@@ -41,7 +57,7 @@ struct SessionFlowView: View {
                 SessionScreenView(
                     blockNumber: blockNumber,
                     blockDuration: blockDuration,
-                    context: brainDump,
+                    session: activeSession,
                     milestones: $milestones,
                     onBlockComplete: {
                         totalBlocksCompleted += 1
@@ -70,17 +86,16 @@ struct SessionFlowView: View {
                     totalDuration: Int(Date().timeIntervalSince(sessionStartTime) / 60),
                     blocksCompleted: max(totalBlocksCompleted, 1),
                     completedMilestones: milestones.filter(\.isCompleted),
+                    session: activeSession,
                     onSave: { done, next in
-                        let session = WorkSession(
-                            date: sessionStartTime,
-                            totalDuration: max(Int(Date().timeIntervalSince(sessionStartTime) / 60), 1),
-                            blocksCompleted: max(totalBlocksCompleted, 1),
-                            whatWasDone: done,
-                            nextStep: next,
-                            milestones: milestones,
-                            brainDump: brainDump
-                        )
-                        storage.saveSession(session)
+                        var finalSession = activeSession
+                        finalSession.date = sessionStartTime
+                        finalSession.totalDuration = max(Int(Date().timeIntervalSince(sessionStartTime) / 60), 1)
+                        finalSession.blocksCompleted = max(totalBlocksCompleted, 1)
+                        finalSession.whatWasDone = done
+                        finalSession.nextStep = next
+                        finalSession.milestones = milestones
+                        storage.recordSessionCompletion(finalSession)
                         appMonitor.stopMonitoring()
                         dismiss()
                     }
@@ -88,8 +103,7 @@ struct SessionFlowView: View {
             }
 
             if appMonitor.showWelcomeBack {
-                welcomeBackOverlay
-                    .transition(.opacity)
+                welcomeBackOverlay.transition(.opacity)
             }
         }
         .animation(.easeInOut(duration: 0.3), value: appMonitor.showWelcomeBack)
@@ -100,9 +114,7 @@ struct SessionFlowView: View {
         ) {
             Button("End Session", role: .destructive) {
                 totalBlocksCompleted += 1
-                withAnimation(.easeInOut(duration: 0.4)) {
-                    currentPhase = .ended
-                }
+                withAnimation(.easeInOut(duration: 0.4)) { currentPhase = .ended }
             }
             Button("Keep Going", role: .cancel) {}
         } message: {
@@ -112,29 +124,18 @@ struct SessionFlowView: View {
 
     private var welcomeBackOverlay: some View {
         ZStack {
-            Theme.primaryTeal.opacity(0.9)
-                .ignoresSafeArea()
-
+            Theme.primaryTeal.opacity(0.9).ignoresSafeArea()
             VStack(spacing: 16) {
                 Text("Welcome back.")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(.white)
-
+                    .font(.system(size: 24, weight: .semibold)).foregroundStyle(.white)
                 let minutes = appMonitor.timeAwaySeconds / 60
                 Text("You were away for \(max(minutes, 1)) minute\(minutes == 1 ? "" : "s").")
-                    .font(.system(size: 16))
-                    .foregroundStyle(.white.opacity(0.8))
-
-                Button {
-                    appMonitor.dismissWelcomeBack()
-                } label: {
+                    .font(.system(size: 16)).foregroundStyle(.white.opacity(0.8))
+                Button { appMonitor.dismissWelcomeBack() } label: {
                     Text("Resume")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Theme.primaryTeal)
-                        .padding(.horizontal, 40)
-                        .padding(.vertical, 14)
-                        .background(.white)
-                        .clipShape(.rect(cornerRadius: 14))
+                        .font(.system(size: 17, weight: .semibold)).foregroundStyle(Theme.primaryTeal)
+                        .padding(.horizontal, 40).padding(.vertical, 14)
+                        .background(.white).clipShape(.rect(cornerRadius: 14))
                 }
                 .padding(.top, 8)
             }

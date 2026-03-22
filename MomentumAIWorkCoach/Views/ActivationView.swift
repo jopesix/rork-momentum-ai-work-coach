@@ -2,7 +2,9 @@ import SwiftUI
 
 struct ActivationView: View {
     let brainDump: String
-    let onStart: ([Milestone], Int) -> Void
+    let projectName: String?
+    /// milestones, duration, startingTask, suggestedMilestones, moOpeningMessage
+    let onStart: ([Milestone], Int, String, [String], String) -> Void
 
     @Environment(StorageService.self) private var storage
     @State private var milestones: [Milestone] = []
@@ -10,13 +12,15 @@ struct ActivationView: View {
     @State private var selectedDuration: Int = 25
     @State private var isCustom: Bool = false
     @State private var customDuration: String = ""
-    @State private var showMilestones: Bool = false
+    @State private var showMilestones: Bool = true
     @State private var isProcessing: Bool = true
-    @State private var moRecommendation: String = ""
-    @State private var moReasoning: String = ""
+    @State private var startingTask: String = ""
+    @State private var moOpeningMessage: String = ""
+    @State private var aiSuggestedMilestones: [String] = []
     @State private var appeared: Bool = false
 
     private let durations = [15, 25, 45, 60]
+    private let claudeService = ClaudeService()
 
     var body: some View {
         ZStack {
@@ -57,7 +61,7 @@ struct ActivationView: View {
                         } else {
                             duration = selectedDuration
                         }
-                        onStart(milestones, duration)
+                        onStart(milestones, duration, startingTask, aiSuggestedMilestones, moOpeningMessage)
                     } label: {
                         Text("Let's go")
                             .font(.system(size: 18, weight: .semibold))
@@ -96,13 +100,13 @@ struct ActivationView: View {
                 .foregroundStyle(Theme.primaryTeal)
                 .tracking(1)
 
-            Text(moRecommendation)
+            Text(startingTask)
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(Theme.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            if !moReasoning.isEmpty {
-                Text(moReasoning)
+            if !moOpeningMessage.isEmpty {
+                Text(moOpeningMessage)
                     .font(.system(size: 15).italic())
                     .foregroundStyle(Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -138,7 +142,7 @@ struct ActivationView: View {
             } else {
                 MoWidgetView(
                     agentId: Constants.elevenlabsAgentId,
-                    context: "Brain dump: \(brainDump)"
+                    context: buildMoContext()
                 )
                 .frame(height: 160)
                 .clipShape(.rect(cornerRadius: 12))
@@ -159,7 +163,7 @@ struct ActivationView: View {
                 HStack(spacing: 6) {
                     Image(systemName: showMilestones ? "chevron.down" : "plus")
                         .font(.system(size: 12, weight: .semibold))
-                    Text("Add milestones for this session")
+                    Text(milestones.isEmpty ? "Add milestones for this session" : "Milestones (\(milestones.count))")
                         .font(.system(size: 15, weight: .medium))
                 }
                 .foregroundStyle(Theme.primaryTeal)
@@ -191,7 +195,7 @@ struct ActivationView: View {
 
                     if milestones.count < 5 {
                         HStack(spacing: 8) {
-                            TextField("e.g. Write campaign goal", text: $newMilestoneText)
+                            TextField("Add a step...", text: $newMilestoneText)
                                 .font(.system(size: 14))
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 10)
@@ -272,18 +276,58 @@ struct ActivationView: View {
         }
     }
 
-    private func processTheDump() {
-        let lines = brainDump.components(separatedBy: .newlines).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-        let firstTask = lines.first ?? brainDump.prefix(80).description
+    private func buildMoContext() -> String {
+        var session = WorkSession()
+        session.brainDump = brainDump
+        session.startingTask = startingTask
+        session.suggestedMilestones = aiSuggestedMilestones
+        session.moOpeningMessage = moOpeningMessage
+        session.projectName = projectName
+        return MoContextBuilder.build(
+            profile: storage.userProfile,
+            session: session,
+            phase: .activation,
+            totalSessions: storage.totalSessionCount,
+            totalHours: storage.totalHours
+        )
+    }
 
+    private func processTheDump() {
         Task {
-            try? await Task.sleep(for: .seconds(2))
-            moRecommendation = "Start with: \(firstTask.prefix(100))"
-            moReasoning = "This seems like the most concrete thing you mentioned. Get it done first and the rest will follow."
-            isProcessing = false
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                appeared = true
+            do {
+                let result = try await claudeService.getActivationPlan(
+                    brainDump: brainDump,
+                    profile: storage.userProfile,
+                    totalSessions: storage.totalSessionCount,
+                    totalHours: storage.totalHours
+                )
+                await MainActor.run {
+                    startingTask = result.startingTask
+                    moOpeningMessage = result.moOpeningMessage
+                    aiSuggestedMilestones = result.suggestedMilestones
+                    // Pre-populate milestone list from Claude's suggestions
+                    milestones = result.suggestedMilestones.map { Milestone(title: $0) }
+                    showMilestones = !milestones.isEmpty
+                    finishProcessing()
+                }
+            } catch {
+                // Graceful fallback — never block the user
+                await MainActor.run {
+                    let lines = brainDump.components(separatedBy: .newlines)
+                        .map { $0.trimmingCharacters(in: .whitespaces) }
+                        .filter { !$0.isEmpty }
+                    startingTask = String((lines.first ?? brainDump).prefix(100))
+                    moOpeningMessage = "You've got this. Let's get started."
+                    finishProcessing()
+                }
             }
+        }
+    }
+
+    private func finishProcessing() {
+        isProcessing = false
+        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+            appeared = true
         }
     }
 }

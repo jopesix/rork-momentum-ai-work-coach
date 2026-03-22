@@ -1,20 +1,36 @@
 import SwiftUI
+import UIKit
 
 struct SessionScreenView: View {
     let blockNumber: Int
     let blockDuration: Int
-    let context: String
+    let session: WorkSession
     @Binding var milestones: [Milestone]
     let onBlockComplete: () -> Void
     let onEndSession: () -> Void
 
+    @Environment(StorageService.self) private var storage
+
+    // Timer state — timestamp-based so it survives backgrounding
+    @State private var timerEndDate: Date? = nil
     @State private var timeRemaining: Int = 0
     @State private var totalSeconds: Int = 0
     @State private var isRunning: Bool = false
     @State private var timer: Timer?
     @State private var selectedPreset: Int = 25
     @State private var showBlockComplete: Bool = false
+
+    // Mo widget
     @State private var showMoWidget: Bool = false
+    @State private var moContext: String = ""
+
+    // Check-ins
+    @State private var elapsedSeconds: Int = 0
+    @State private var checkInNumber: Int = 0
+    @State private var showCheckIn: Bool = false
+
+    // Stuck
+    @State private var showStuckPicker: Bool = false
 
     private let presets = [5, 10, 15, 25, 30, 45, 60]
 
@@ -23,41 +39,52 @@ struct SessionScreenView: View {
             Theme.backgroundMain.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                topBar
-                    .padding(.top, 8)
+                topBar.padding(.top, 8)
 
                 ScrollView {
                     VStack(spacing: 20) {
-                        if !milestones.isEmpty {
-                            milestoneStrip
-                        }
-
+                        if !milestones.isEmpty { milestoneStrip }
                         timerSection
-
+                        stuckButton
                         talkToMoButton
-
                         if showMoWidget {
-                            moSection
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                            moSection.transition(.move(edge: .bottom).combined(with: .opacity))
                         }
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 32)
                 }
             }
+
+            if showCheckIn {
+                checkInBanner.transition(.move(edge: .top).combined(with: .opacity))
+            }
         }
         .onAppear {
             timeRemaining = blockDuration * 60
             totalSeconds = blockDuration * 60
             selectedPreset = blockDuration
+            moContext = buildContext()
         }
         .onDisappear { timer?.invalidate() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            recalculateTimerFromBackground()
+        }
         .sheet(isPresented: $showBlockComplete) {
             blockCompleteSheet
                 .presentationDetents([.fraction(0.35)])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showStuckPicker) {
+            stuckPickerSheet
+                .presentationDetents([.fraction(0.45)])
+                .presentationDragIndicator(.visible)
+        }
+        .animation(.snappy, value: showMoWidget)
+        .animation(.spring(response: 0.4), value: showCheckIn)
     }
+
+    // MARK: - Top bar
 
     private var topBar: some View {
         HStack {
@@ -68,9 +95,7 @@ struct SessionScreenView: View {
                 .foregroundStyle(Theme.textSecondary)
                 .tracking(1)
             Spacer()
-            Button {
-                onEndSession()
-            } label: {
+            Button { onEndSession() } label: {
                 Text("End")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(Theme.textSecondary)
@@ -83,12 +108,12 @@ struct SessionScreenView: View {
         .padding(.horizontal, 20)
     }
 
+    // MARK: - Milestones
+
     private var milestoneStrip: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
-                ForEach(milestones) { milestone in
-                    milestoneChip(milestone)
-                }
+                ForEach(milestones) { milestone in milestoneChip(milestone) }
             }
         }
         .contentMargins(.horizontal, 4)
@@ -98,9 +123,7 @@ struct SessionScreenView: View {
     private func milestoneChip(_ milestone: Milestone) -> some View {
         Button {
             if let index = milestones.firstIndex(where: { $0.id == milestone.id }) {
-                withAnimation(.snappy) {
-                    milestones[index].isCompleted.toggle()
-                }
+                withAnimation(.snappy) { milestones[index].isCompleted.toggle() }
             }
         } label: {
             HStack(spacing: 6) {
@@ -121,6 +144,8 @@ struct SessionScreenView: View {
         .sensoryFeedback(.impact(weight: .light), trigger: milestone.isCompleted)
     }
 
+    // MARK: - Timer
+
     private var timerSection: some View {
         VStack(spacing: 20) {
             ZStack {
@@ -129,10 +154,7 @@ struct SessionScreenView: View {
                     .frame(width: 220, height: 220)
                 Circle()
                     .trim(from: 0, to: progress)
-                    .stroke(
-                        Theme.primaryTeal,
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
+                    .stroke(Theme.primaryTeal, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .frame(width: 220, height: 220)
                     .rotationEffect(.degrees(-90))
                     .animation(.linear(duration: 1), value: progress)
@@ -149,42 +171,32 @@ struct SessionScreenView: View {
             .padding(.top, 8)
 
             if isRunning {
-                Button {
-                    pauseTimer()
-                } label: {
+                Button { pauseTimer() } label: {
                     Label("Pause", systemImage: "pause.fill")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
+                        .frame(maxWidth: .infinity).frame(height: 48)
                         .background(Theme.primaryTeal)
                         .clipShape(.rect(cornerRadius: 14))
                 }
                 .padding(.horizontal, 20)
             } else {
                 VStack(spacing: 14) {
-                    Button {
-                        startTimer()
-                    } label: {
+                    Button { startTimer() } label: {
                         Label("Start", systemImage: "play.fill")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
+                            .frame(maxWidth: .infinity).frame(height: 48)
                             .background(Theme.primaryTeal)
                             .clipShape(.rect(cornerRadius: 14))
                     }
-
                     if timeRemaining < totalSeconds && timeRemaining > 0 {
-                        Button {
-                            resetTimer()
-                        } label: {
+                        Button { resetTimer() } label: {
                             Text("Reset timer")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundStyle(Theme.textSecondary)
                         }
                     }
-
                     ScrollView(.horizontal) {
                         HStack(spacing: 8) {
                             ForEach(presets, id: \.self) { preset in
@@ -197,8 +209,7 @@ struct SessionScreenView: View {
                                     Text("\(preset)m")
                                         .font(.system(size: 13, weight: .medium))
                                         .foregroundStyle(isSelected ? .white : Theme.textSecondary)
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 14).padding(.vertical, 8)
                                         .background(isSelected ? Theme.primaryTeal : Color(.tertiarySystemFill))
                                         .clipShape(Capsule())
                                 }
@@ -213,17 +224,29 @@ struct SessionScreenView: View {
         }
     }
 
-    private var talkToMoButton: some View {
-        Button {
-            withAnimation(.snappy) {
-                showMoWidget.toggle()
-            }
-        } label: {
+    // MARK: - Stuck button
+
+    private var stuckButton: some View {
+        Button { showStuckPicker = true } label: {
             HStack(spacing: 8) {
-                Image(systemName: "waveform")
-                    .font(.system(size: 14))
-                Text("Talk to Mo")
-                    .font(.system(size: 15, weight: .medium))
+                Image(systemName: "bolt.heart").font(.system(size: 14))
+                Text("I'm Stuck").font(.system(size: 15, weight: .medium))
+            }
+            .foregroundStyle(Theme.accent)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(Theme.accent.opacity(0.1))
+            .clipShape(.rect(cornerRadius: 12))
+        }
+    }
+
+    // MARK: - Talk to Mo
+
+    private var talkToMoButton: some View {
+        Button { withAnimation(.snappy) { showMoWidget.toggle() } } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "waveform").font(.system(size: 14))
+                Text("Talk to Mo").font(.system(size: 15, weight: .medium))
             }
             .foregroundStyle(Theme.primaryTeal)
             .frame(maxWidth: .infinity)
@@ -243,76 +266,206 @@ struct SessionScreenView: View {
                     .foregroundStyle(Theme.textSecondary)
                     .tracking(0.8)
             }
-
             if Constants.elevenlabsAgentId.isEmpty {
                 VStack(spacing: 8) {
-                    Image(systemName: "waveform.circle")
-                        .font(.system(size: 28))
+                    Image(systemName: "waveform.circle").font(.system(size: 28))
                         .foregroundStyle(Theme.primaryTeal.opacity(0.5))
                     Text("Voice coaching is being set up")
-                        .font(.system(size: 13))
-                        .foregroundStyle(Theme.textSecondary)
+                        .font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding(.vertical, 16)
             } else {
-                Text("Tap the mic to speak to Mo")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.textSecondary)
-
-                MoWidgetView(
-                    agentId: Constants.elevenlabsAgentId,
-                    context: context
-                )
-                .frame(height: 180)
-                .clipShape(.rect(cornerRadius: 12))
+                MoWidgetView(agentId: Constants.elevenlabsAgentId, context: moContext)
+                    .frame(height: 180).clipShape(.rect(cornerRadius: 12))
             }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity)
-        .background(.white)
-        .clipShape(.rect(cornerRadius: 16))
+        .padding(16).frame(maxWidth: .infinity)
+        .background(.white).clipShape(.rect(cornerRadius: 16))
         .shadow(color: .black.opacity(0.04), radius: 12, y: 4)
     }
+
+    // MARK: - Check-in banner
+
+    private var checkInBanner: some View {
+        VStack {
+            HStack(spacing: 12) {
+                MoPresenceIndicator()
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(checkInMessage)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Theme.textPrimary)
+                    Text("Tap to talk to Mo")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+                Button { withAnimation { showCheckIn = false } } label: {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 20))
+                        .foregroundStyle(Theme.textSecondary)
+                }
+            }
+            .padding(16).background(.white)
+            .clipShape(.rect(cornerRadius: 14))
+            .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+            .padding(.horizontal, 16).padding(.top, 8)
+            .onTapGesture {
+                withAnimation { showCheckIn = false }
+                moContext = buildContext(checkInNumber: checkInNumber)
+                withAnimation(.snappy) { showMoWidget = true }
+            }
+            Spacer()
+        }
+    }
+
+    private var checkInMessage: String {
+        switch checkInNumber {
+        case 1: return "Hey — 10 minutes in. How's it going?"
+        case 2: return "Checking in. Still on track?"
+        default: return "Mo is checking in. Need anything?"
+        }
+    }
+
+    // MARK: - Stuck picker sheet
+
+    private var stuckPickerSheet: some View {
+        VStack(spacing: 20) {
+            Text("What kind of stuck?")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary)
+            VStack(spacing: 10) {
+                ForEach(StuckType.allCases, id: \.self) { type in
+                    Button {
+                        showStuckPicker = false
+                        moContext = buildContext(stuckType: type)
+                        withAnimation(.snappy) { showMoWidget = true }
+                    } label: {
+                        HStack {
+                            Text(type.displayName).font(.system(size: 16)).foregroundStyle(Theme.textPrimary)
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                        }
+                        .padding(.horizontal, 18).padding(.vertical, 16)
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(.rect(cornerRadius: 12))
+                    }
+                }
+            }
+            .padding(.horizontal, 24)
+            Spacer()
+        }
+        .padding(.top, 24)
+    }
+
+    // MARK: - Block complete sheet
 
     private var blockCompleteSheet: some View {
         VStack(spacing: 20) {
             VStack(spacing: 8) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 36))
+                Image(systemName: "checkmark.circle.fill").font(.system(size: 36))
                     .foregroundStyle(Theme.primaryTeal)
                 Text("Block complete.")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(Theme.textPrimary)
+                    .font(.system(size: 22, weight: .semibold)).foregroundStyle(Theme.textPrimary)
                 Text("Take a real break. Step away.")
-                    .font(.system(size: 16))
-                    .foregroundStyle(Theme.textSecondary)
+                    .font(.system(size: 16)).foregroundStyle(Theme.textSecondary)
             }
-
             VStack(spacing: 10) {
-                Button {
-                    showBlockComplete = false
-                    onBlockComplete()
-                } label: {
-                    Text("Start 5 min break")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(Theme.primaryTeal)
-                        .clipShape(.rect(cornerRadius: 14))
+                Button { showBlockComplete = false; onBlockComplete() } label: {
+                    Text("Start 5 min break").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).frame(height: 50)
+                        .background(Theme.primaryTeal).clipShape(.rect(cornerRadius: 14))
                 }
-                Button {
-                    showBlockComplete = false
-                    resetTimer()
-                } label: {
-                    Text("Keep going")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Theme.textSecondary)
+                Button { showBlockComplete = false; resetTimer() } label: {
+                    Text("Keep going").font(.system(size: 14)).foregroundStyle(Theme.textSecondary)
                 }
             }
         }
         .padding(24)
+    }
+
+    // MARK: - Timer logic
+
+    private func startTimer() {
+        let end = Date().addingTimeInterval(TimeInterval(timeRemaining))
+        timerEndDate = end
+        isRunning = true
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in tick() }
+    }
+
+    private func pauseTimer() {
+        timer?.invalidate(); isRunning = false; timerEndDate = nil
+    }
+
+    private func resetTimer() {
+        timer?.invalidate()
+        isRunning = false; timerEndDate = nil
+        timeRemaining = selectedPreset * 60
+        totalSeconds = selectedPreset * 60
+        elapsedSeconds = 0; checkInNumber = 0
+    }
+
+    private func tick() {
+        guard timeRemaining > 0 else { timerFinished(); return }
+        timeRemaining -= 1
+        elapsedSeconds += 1
+        checkForCheckIns()
+    }
+
+    private func recalculateTimerFromBackground() {
+        guard isRunning, let end = timerEndDate else { return }
+        let remaining = Int(end.timeIntervalSinceNow)
+        if remaining <= 0 { timerFinished() } else {
+            timeRemaining = remaining
+            elapsedSeconds = totalSeconds - remaining
+        }
+    }
+
+    private func timerFinished() {
+        timer?.invalidate(); isRunning = false; timerEndDate = nil; timeRemaining = 0
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        showBlockComplete = true
+    }
+
+    private func checkForCheckIns() {
+        // First check-in at exactly 10 minutes elapsed
+        if checkInNumber == 0 && elapsedSeconds == 600 {
+            triggerCheckIn(number: 1)
+            return
+        }
+        // Every 20 minutes after first check-in (at 10+20=30 min, 30+20=50 min, etc.)
+        if checkInNumber > 0 {
+            let nextCheckInAt = 600 + checkInNumber * 1200
+            if elapsedSeconds == nextCheckInAt {
+                triggerCheckIn(number: checkInNumber + 1)
+            }
+        }
+    }
+
+    private func triggerCheckIn(number: Int) {
+        checkInNumber = number
+        moContext = buildContext(checkInNumber: number)
+        withAnimation(.spring(response: 0.4)) { showCheckIn = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
+            withAnimation { showCheckIn = false }
+        }
+    }
+
+    // MARK: - Context builder
+
+    private func buildContext(checkInNumber: Int = 0, stuckType: StuckType? = nil) -> String {
+        let stuck: StuckContext? = stuckType.map {
+            StuckContext(minutesIntoSession: elapsedSeconds / 60, currentTask: session.startingTask, stuckType: $0)
+        }
+        return MoContextBuilder.build(
+            profile: storage.userProfile,
+            session: session,
+            phase: .working,
+            elapsedMinutes: elapsedSeconds / 60,
+            checkInNumber: checkInNumber,
+            stuckContext: stuck,
+            totalSessions: storage.totalSessionCount,
+            totalHours: storage.totalHours
+        )
     }
 
     private var progress: Double {
@@ -321,33 +474,8 @@ struct SessionScreenView: View {
     }
 
     private var timeString: String {
-        let minutes = timeRemaining / 60
-        let seconds = timeRemaining % 60
-        return String(format: "%d:%02d", minutes, seconds)
-    }
-
-    private func startTimer() {
-        isRunning = true
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if timeRemaining > 0 {
-                timeRemaining -= 1
-            } else {
-                timer?.invalidate()
-                isRunning = false
-                showBlockComplete = true
-            }
-        }
-    }
-
-    private func pauseTimer() {
-        timer?.invalidate()
-        isRunning = false
-    }
-
-    private func resetTimer() {
-        timer?.invalidate()
-        isRunning = false
-        timeRemaining = selectedPreset * 60
-        totalSeconds = selectedPreset * 60
+        String(format: "%d:%02d", timeRemaining / 60, timeRemaining % 60)
     }
 }
+
+extension StuckType: CaseIterable {}

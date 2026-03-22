@@ -43,6 +43,31 @@ class StorageService {
         sessions = loaded
     }
 
+    /// Saves the session, updates lastSessionContext, and stamps lastWorkedOn on the project.
+    /// Use this instead of saveSession() at the end of every session.
+    func recordSessionCompletion(_ session: WorkSession) {
+        // Update last session context
+        userProfile.lastSessionContext = LastSessionContext(
+            projectName: session.projectName,
+            taskSummary: session.whatWasDone.isEmpty ? session.startingTask : session.whatWasDone,
+            nextStep: session.nextStep,
+            completedAt: session.date,
+            blocksCompleted: session.blocksCompleted,
+            totalDuration: session.totalDuration
+        )
+        // Stamp lastWorkedOn on the matching project
+        if let name = session.projectName,
+           let idx = userProfile.projects.firstIndex(where: { $0.name == name }) {
+            userProfile.projects[idx].lastWorkedOn = Date()
+        }
+        saveProfile()
+        saveSession(session)
+    }
+
+    var activeProjects: [Project] {
+        userProfile.projects.filter { $0.isActive }
+    }
+
     var totalSessionCount: Int {
         sessions.count
     }

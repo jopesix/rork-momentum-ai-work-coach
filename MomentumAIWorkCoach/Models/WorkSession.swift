@@ -9,6 +9,12 @@ nonisolated struct WorkSession: Codable, Identifiable, Sendable {
     var nextStep: String = ""
     var milestones: [Milestone] = []
     var brainDump: String = ""
+    var projectName: String? = nil
+
+    // Populated by ClaudeService at activation
+    var startingTask: String = ""
+    var suggestedMilestones: [String] = []
+    var moOpeningMessage: String = ""
 }
 
 nonisolated struct Milestone: Codable, Identifiable, Sendable {

@@ -10,6 +10,7 @@ struct SettingsView: View {
 
                 ScrollView {
                     VStack(spacing: 24) {
+                        coachingProfileSection
                         preferencesSection
                         aboutSection
                     }
@@ -19,6 +20,38 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+        }
+    }
+
+    private var coachingProfileSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("MO")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.textSecondary)
+                .tracking(0.8)
+                .padding(.bottom, 10)
+
+            NavigationLink(destination: CoachingProfileView()) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Coaching Profile")
+                            .font(.system(size: 16))
+                            .foregroundStyle(Theme.textPrimary)
+                        let name = storage.userProfile.coachingProfile.name
+                        Text(name.isEmpty ? "Tell Mo who you are" : "Hi \(name) — \(storage.userProfile.projects.filter(\.isActive).count) project\(storage.userProfile.projects.filter(\.isActive).count == 1 ? "" : "s")")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Theme.textSecondary.opacity(0.5))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            }
+            .background(.white)
+            .clipShape(.rect(cornerRadius: 12))
         }
     }
 
