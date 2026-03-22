@@ -439,6 +439,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_ElevenLabsAgentId = "$(EXPO_PUBLIC_ELEVENLABS_AGENT_ID)";
+				INFOPLIST_KEY_ClaudeApiKey = "$(CLAUDE_API_KEY)";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Momentum needs microphone access so Mo can speak with you during work sessions.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Momentum uses speech recognition to transcribe your voice input during brain dumps and session summaries.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
