@@ -11,7 +11,7 @@ struct MoWidgetView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
-        // Use persistent data store so ElevenLabs consent is remembered across sessions
+        // Persistent data store so any saved state carries across sessions
         config.websiteDataStore = WKWebsiteDataStore.default()
 
         let webView = WKWebView(frame: .zero, configuration: config)
@@ -19,8 +19,8 @@ struct MoWidgetView: UIViewRepresentable {
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
         webView.scrollView.isScrollEnabled = false
-        // Auto-grant microphone permission so the call starts without a browser prompt
         webView.uiDelegate = context.coordinator
+        webView.navigationDelegate = context.coordinator
         loadHTML(in: webView)
         return webView
     }
@@ -70,11 +70,11 @@ struct MoWidgetView: UIViewRepresentable {
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, WKUIDelegate {
-        /// Auto-grant microphone (and camera) permission to the ElevenLabs widget.
-        /// The app already holds NSMicrophoneUsageDescription permission from iOS —
-        /// this just passes that grant through to the embedded WebView so the call
-        /// can start without a secondary browser-level prompt.
+    class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate {
+
+        // MARK: - WKUIDelegate
+
+        /// Auto-grant microphone permission so the ElevenLabs call connects immediately.
         func webView(
             _ webView: WKWebView,
             requestMediaCapturePermissionFor origin: WKSecurityOrigin,
@@ -85,10 +85,53 @@ struct MoWidgetView: UIViewRepresentable {
             decisionHandler(.grant)
         }
 
-        /// Suppress the JavaScript alert/confirm dialogs the widget may show
         func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,
                      initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
             completionHandler()
+        }
+
+        func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
+                     initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+            // Auto-confirm any JS dialogs (e.g. consent confirmations)
+            completionHandler(true)
+        }
+
+        // MARK: - WKNavigationDelegate
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // Poll the ElevenLabs widget's shadow DOM and auto-click any consent/accept button
+            // so the user never has to interact with the privacy popup.
+            autoAcceptConsent(in: webView, attempts: 0)
+        }
+
+        private func autoAcceptConsent(in webView: WKWebView, attempts: Int) {
+            guard attempts < 20 else { return } // give up after ~10 seconds
+
+            let js = """
+            (function() {
+                var widget = document.querySelector('elevenlabs-convai');
+                if (!widget) return 'no-widget';
+                var root = widget.shadowRoot;
+                if (!root) return 'no-shadow';
+                var buttons = Array.from(root.querySelectorAll('button, [role="button"]'));
+                var acceptBtn = buttons.find(function(b) {
+                    var t = (b.textContent || b.innerText || '').trim().toLowerCase();
+                    return t.includes('accept') || t.includes('agree') || t.includes('continue') || t.includes('got it') || t.includes('ok');
+                });
+                if (acceptBtn) { acceptBtn.click(); return 'clicked'; }
+                return 'not-found';
+            })();
+            """
+
+            webView.evaluateJavaScript(js) { [weak self] result, _ in
+                let status = result as? String ?? "error"
+                if status != "clicked" {
+                    // Not found yet — try again in 500ms
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self?.autoAcceptConsent(in: webView, attempts: attempts + 1)
+                    }
+                }
+            }
         }
     }
 }
