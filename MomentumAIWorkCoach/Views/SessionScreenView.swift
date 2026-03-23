@@ -477,5 +477,3 @@ struct SessionScreenView: View {
         String(format: "%d:%02d", timeRemaining / 60, timeRemaining % 60)
     }
 }
-
-extension StuckType: CaseIterable {}

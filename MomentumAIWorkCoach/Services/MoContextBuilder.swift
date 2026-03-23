@@ -9,7 +9,7 @@ enum SessionPhaseContext: String {
     case celebration  = "celebration"
 }
 
-enum StuckType: String, Codable {
+enum StuckType: String, Codable, CaseIterable {
     case overwhelm    = "overwhelm"
     case distraction  = "distraction"
     case unclear      = "unclear"
