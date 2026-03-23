@@ -24,7 +24,7 @@ struct ActivationView: View {
 
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            Theme.backgroundMain.ignoresSafeArea()
 
             if isProcessing {
                 processingState
@@ -102,13 +102,13 @@ struct ActivationView: View {
 
             Text(startingTask)
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Theme.textPrimary)
+                .foregroundStyle(Theme.onPrimaryLight)
                 .fixedSize(horizontal: false, vertical: true)
 
             if !moOpeningMessage.isEmpty {
                 Text(moOpeningMessage)
                     .font(.system(size: 15).italic())
-                    .foregroundStyle(Theme.textSecondary)
+                    .foregroundStyle(Theme.onPrimaryLight.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

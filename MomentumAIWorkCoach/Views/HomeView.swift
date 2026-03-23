@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var selectedTask: MoTask? = nil
     @State private var showAddTask: Bool = false
     @State private var showDoneSection: Bool = false
+    @State private var detailTask: MoTask? = nil
 
     var body: some View {
         NavigationStack {
@@ -42,6 +43,12 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showAddTask) {
             AddTaskView()
+        }
+        .sheet(item: $detailTask) { task in
+            TaskDetailView(task: task) { tappedTask in
+                selectedTask = tappedTask
+                showSession = true
+            }
         }
     }
 
@@ -147,21 +154,27 @@ struct HomeView: View {
             }
             .sensoryFeedback(.impact(weight: .light), trigger: done)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(task.title)
-                    .font(.system(size: 15))
-                    .foregroundStyle(done ? Theme.textSecondary : Theme.textPrimary)
-                    .strikethrough(done, color: Theme.textSecondary)
-                    .lineLimit(2)
+            Button {
+                detailTask = task
+            } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(task.title)
+                        .font(.system(size: 15))
+                        .foregroundStyle(done ? Theme.textSecondary : Theme.textPrimary)
+                        .strikethrough(done, color: Theme.textSecondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
 
-                if let tag = task.projectTag {
-                    Text(tag)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Theme.primaryTeal.opacity(done ? 0.5 : 0.8))
+                    if let tag = task.projectTag {
+                        Text(tag)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.primaryTeal.opacity(done ? 0.5 : 0.8))
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Spacer()
+            Spacer(minLength: 0)
 
             if !done {
                 Button {

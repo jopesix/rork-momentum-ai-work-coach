@@ -16,7 +16,7 @@ struct BrainDumpView: View {
 
     var body: some View {
         ZStack {
-            Color.white.ignoresSafeArea()
+            Theme.backgroundMain.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 VStack(spacing: 8) {
@@ -93,12 +93,12 @@ struct BrainDumpView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Last time: \(last.taskSummary)")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Theme.textPrimary)
+                    .foregroundStyle(Theme.onPrimaryLight)
                     .lineLimit(2)
                 if !last.nextStep.isEmpty {
                     Text("Next step: \(last.nextStep)")
                         .font(.system(size: 12))
-                        .foregroundStyle(Theme.textSecondary)
+                        .foregroundStyle(Theme.onPrimaryLight.opacity(0.7))
                         .lineLimit(1)
                 }
             }

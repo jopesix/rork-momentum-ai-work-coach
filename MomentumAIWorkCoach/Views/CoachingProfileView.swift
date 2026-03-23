@@ -77,15 +77,17 @@ struct CoachingProfileView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(style.displayName)
                                     .font(.system(size: 15, weight: .medium))
-                                    .foregroundStyle(Theme.textPrimary)
-                                Text(style.description)
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(Theme.textSecondary)
+                                    .foregroundStyle(isSelected ? .white : Theme.textPrimary)
+                                if !isSelected {
+                                    Text(style.description)
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(Theme.textSecondary)
+                                }
                             }
                             Spacer()
                         }
                         .padding(12)
-                        .background(isSelected ? Theme.primaryLight : Theme.inputBackground)
+                        .background(isSelected ? Theme.primaryTeal : Theme.inputBackground)
                         .clipShape(.rect(cornerRadius: 10))
                     }
                 }
