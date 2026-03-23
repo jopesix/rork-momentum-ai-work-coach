@@ -101,6 +101,13 @@ class StorageService {
         saveProfile()
     }
 
+    func uncompleteTask(id: String) {
+        guard let idx = userProfile.tasks.firstIndex(where: { $0.id == id }) else { return }
+        userProfile.tasks[idx].status = .pending
+        userProfile.tasks[idx].completedAt = nil
+        saveProfile()
+    }
+
     var totalSessionCount: Int {
         sessions.count
     }

@@ -10,13 +10,7 @@ actor ClaudeService {
 
     private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
 
-    private var apiKey: String {
-        // Load from Info.plist key CLAUDE_API_KEY
-        let fromPlist = Bundle.main.object(forInfoDictionaryKey: "ClaudeApiKey") as? String ?? ""
-        if !fromPlist.isEmpty { return fromPlist }
-        let fromEnv = ProcessInfo.processInfo.environment["CLAUDE_API_KEY"] ?? ""
-        return fromEnv
-    }
+    private var apiKey: String { Constants.claudeApiKey }
 
     func getActivationPlan(brainDump: String, profile: UserProfile, totalSessions: Int, totalHours: Double) async throws -> ActivationResult {
         let systemPrompt = buildSystemPrompt(profile: profile, totalSessions: totalSessions, totalHours: totalHours)

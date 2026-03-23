@@ -134,9 +134,18 @@ struct HomeView: View {
 
     private func taskRow(_ task: MoTask, done: Bool) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                .font(.system(size: 20))
-                .foregroundStyle(done ? Theme.primaryTeal.opacity(0.5) : Theme.border)
+            Button {
+                if done {
+                    storage.uncompleteTask(id: task.id)
+                } else {
+                    storage.completeTask(id: task.id)
+                }
+            } label: {
+                Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(done ? Theme.primaryTeal.opacity(0.5) : Theme.border)
+            }
+            .sensoryFeedback(.impact(weight: .light), trigger: done)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title)
