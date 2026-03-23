@@ -137,9 +137,6 @@ struct SessionFlowView: View {
                     blocksCompleted: max(totalBlocksCompleted, 1),
                     completedMilestones: milestones.filter(\.isCompleted),
                     session: activeSession,
-                    onContinue: {
-                        withAnimation(.easeInOut(duration: 0.4)) { currentPhase = .working }
-                    },
                     onSave: { done, next in
                         var finalSession = activeSession
                         finalSession.date = sessionStartTime
@@ -154,6 +151,9 @@ struct SessionFlowView: View {
                         }
                         appMonitor.stopMonitoring()
                         dismiss()
+                    },
+                    onContinue: {
+                        withAnimation(.easeInOut(duration: 0.4)) { currentPhase = .working }
                     }
                 )
             }

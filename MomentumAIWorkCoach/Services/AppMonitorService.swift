@@ -20,8 +20,8 @@ class AppMonitorService {
             forName: UIApplication.didEnterBackgroundNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
+        ) { _ in
+            Task { @MainActor [weak self] in
                 self?.handleBackground()
             }
         }
@@ -30,8 +30,8 @@ class AppMonitorService {
             forName: UIApplication.willEnterForegroundNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
+        ) { _ in
+            Task { @MainActor [weak self] in
                 self?.handleForeground()
             }
         }

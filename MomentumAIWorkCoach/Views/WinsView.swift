@@ -298,7 +298,6 @@ struct WinsView: View {
         let today = calendar.startOfDay(for: Date())
         let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
 
-        var groups: [(String, [WinEntry])] = []
         var seen: [String: [WinEntry]] = [:]
         var order: [String] = []
 
