@@ -20,9 +20,10 @@ struct SessionScreenView: View {
     @State private var selectedPreset: Int = 25
     @State private var showBlockComplete: Bool = false
 
-    // Mo widget
+    // Mo widget + speaker
     @State private var showMoWidget: Bool = false
     @State private var moContext: String = ""
+    @State private var speaker = MoSpeaker()
 
     // Check-ins
     @State private var elapsedSeconds: Int = 0
@@ -65,8 +66,18 @@ struct SessionScreenView: View {
             totalSeconds = blockDuration * 60
             selectedPreset = blockDuration
             moContext = buildContext()
+            // Mo speaks the opening message automatically on session start
+            let opening = session.moOpeningMessage.isEmpty
+                ? "Alright, let's get into it. Timer's ready when you are."
+                : session.moOpeningMessage
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                speaker.speak(opening)
+            }
         }
-        .onDisappear { timer?.invalidate() }
+        .onDisappear {
+            timer?.invalidate()
+            speaker.stop()
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             recalculateTimerFromBackground()
         }
@@ -338,6 +349,8 @@ struct SessionScreenView: View {
                     Button {
                         showStuckPicker = false
                         moContext = buildContext(stuckType: type)
+                        // Mo speaks an immediate coaching line, then widget opens for deeper chat
+                        speaker.speak(stuckCoachingLine(for: type))
                         withAnimation(.snappy) { showMoWidget = true }
                     } label: {
                         HStack {
@@ -445,6 +458,8 @@ struct SessionScreenView: View {
         checkInNumber = number
         moContext = buildContext(checkInNumber: number)
         withAnimation(.spring(response: 0.4)) { showCheckIn = true }
+        // Mo speaks the check-in aloud automatically
+        speaker.speak(checkInMessage)
         DispatchQueue.main.asyncAfter(deadline: .now() + 60) {
             withAnimation { showCheckIn = false }
         }
@@ -466,6 +481,21 @@ struct SessionScreenView: View {
             totalSessions: storage.totalSessionCount,
             totalHours: storage.totalHours
         )
+    }
+
+    private func stuckCoachingLine(for type: StuckType) -> String {
+        let name = storage.userProfile.coachingProfile.name
+        let n = name.isEmpty ? "" : "\(name), "
+        switch type {
+        case .overwhelm:
+            return "\(n)let's zoom all the way in. Forget everything else. What's one tiny thing you can do right now?"
+        case .distraction:
+            return "It happens. You're back now — that's what matters. Let's pick up exactly where you left off."
+        case .unclear:
+            return "\(n)if the task feels fuzzy, it's hard to start. Tell me what you're trying to do and we'll make it concrete."
+        case .lowEnergy:
+            return "Low energy is real. You don't have to push through everything. What's the easiest version of this task?"
+        }
     }
 
     private var progress: Double {
