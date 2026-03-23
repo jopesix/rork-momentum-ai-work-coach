@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SessionFlowView: View {
+    var sourceTask: MoTask? = nil
+
     @Environment(StorageService.self) private var storage
     @Environment(\.dismiss) private var dismiss
 
@@ -57,11 +59,15 @@ struct SessionFlowView: View {
                 }
 
             case .activation:
-                // Back button to return to brain dump
+                // Back button: to brain dump (quick session) or dismiss (task-based)
                 VStack {
                     HStack {
                         Button {
-                            withAnimation(.easeInOut(duration: 0.3)) { currentPhase = .brainDump }
+                            if sourceTask != nil {
+                                dismiss()
+                            } else {
+                                withAnimation(.easeInOut(duration: 0.3)) { currentPhase = .brainDump }
+                            }
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "chevron.left")
@@ -140,6 +146,9 @@ struct SessionFlowView: View {
                         finalSession.nextStep = next
                         finalSession.milestones = milestones
                         storage.recordSessionCompletion(finalSession)
+                        if let task = sourceTask {
+                            storage.completeTask(id: task.id)
+                        }
                         appMonitor.stopMonitoring()
                         dismiss()
                     }
@@ -148,6 +157,17 @@ struct SessionFlowView: View {
 
             if appMonitor.showWelcomeBack {
                 welcomeBackOverlay.transition(.opacity)
+            }
+        }
+        .onAppear {
+            if let task = sourceTask {
+                let context = [task.title, task.notes]
+                    .filter { !$0.isEmpty }
+                    .joined(separator: "\n")
+                brainDump = context
+                activeSession.brainDump = context
+                activeSession.projectName = task.projectTag
+                currentPhase = .activation
             }
         }
         .animation(.easeInOut(duration: 0.3), value: appMonitor.showWelcomeBack)

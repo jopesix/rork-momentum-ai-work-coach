@@ -9,4 +9,5 @@ nonisolated struct UserProfile: Codable, Sendable {
     var coachingProfile: CoachingProfile = CoachingProfile()
     var projects: [Project] = []
     var lastSessionContext: LastSessionContext? = nil
+    var tasks: [MoTask] = []
 }

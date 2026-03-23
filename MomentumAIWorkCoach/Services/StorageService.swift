@@ -68,6 +68,39 @@ class StorageService {
         userProfile.projects.filter { $0.isActive }
     }
 
+    // MARK: - Tasks
+
+    var pendingTasks: [MoTask] {
+        userProfile.tasks.filter { $0.status == .pending }
+    }
+
+    var completedTasks: [MoTask] {
+        userProfile.tasks
+            .filter { $0.status == .done }
+            .sorted { ($0.completedAt ?? $0.createdAt) > ($1.completedAt ?? $1.createdAt) }
+    }
+
+    var allProjectTags: [String] {
+        Array(Set(userProfile.tasks.compactMap(\.projectTag))).sorted()
+    }
+
+    func addTask(_ task: MoTask) {
+        userProfile.tasks.append(task)
+        saveProfile()
+    }
+
+    func completeTask(id: String) {
+        guard let idx = userProfile.tasks.firstIndex(where: { $0.id == id }) else { return }
+        userProfile.tasks[idx].status = .done
+        userProfile.tasks[idx].completedAt = Date()
+        saveProfile()
+    }
+
+    func deleteTask(id: String) {
+        userProfile.tasks.removeAll { $0.id == id }
+        saveProfile()
+    }
+
     var totalSessionCount: Int {
         sessions.count
     }

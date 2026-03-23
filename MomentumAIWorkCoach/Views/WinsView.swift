@@ -1,13 +1,275 @@
 import SwiftUI
 
+// MARK: - Win entry model
+
+private enum WinEntryType {
+    case sessionSummary(duration: Int, blocks: Int)
+    case completedTask
+    case milestone(parent: String)
+}
+
+private struct WinEntry: Identifiable {
+    let id: String
+    let type: WinEntryType
+    let title: String
+    let projectTag: String?
+    let date: Date
+}
+
+// MARK: - Filter
+
+nonisolated enum WinFilter: String, CaseIterable, Sendable {
+    case all = "All"
+    case thisWeek = "This week"
+    case thisMonth = "This month"
+}
+
+// MARK: - View
+
 struct WinsView: View {
     @Environment(StorageService.self) private var storage
-    @State private var searchText: String = ""
     @State private var selectedFilter: WinFilter = .all
-    @State private var selectedSession: WorkSession?
+    @State private var selectedProjectTag: String? = nil
+    @State private var searchText: String = ""
 
-    private var filteredSessions: [WorkSession] {
-        var result = storage.sessions
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Theme.backgroundMain.ignoresSafeArea()
+
+                if allWins.isEmpty {
+                    emptyState
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            searchBar
+
+                            filterRow
+
+                            if !allProjectTags.isEmpty {
+                                projectTagRow
+                            }
+
+                            let wins = filteredWins
+                            if wins.isEmpty {
+                                noMatchState
+                            } else {
+                                ForEach(groupedByDate(wins), id: \.0) { dateLabel, entries in
+                                    dateSection(label: dateLabel, entries: entries)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                        .padding(.bottom, 32)
+                    }
+                }
+            }
+            .navigationTitle("Wins")
+        }
+    }
+
+    // MARK: - Subviews
+
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").foregroundStyle(Theme.textSecondary)
+            TextField("Search your wins", text: $searchText)
+                .font(.system(size: 15))
+        }
+        .padding(12)
+        .background(Theme.inputBackground)
+        .clipShape(.rect(cornerRadius: 12))
+    }
+
+    private var filterRow: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                ForEach(WinFilter.allCases, id: \.self) { filter in
+                    filterChip(filter.rawValue, isSelected: selectedFilter == filter) {
+                        selectedFilter = filter
+                    }
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    private var projectTagRow: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                filterChip("All projects", isSelected: selectedProjectTag == nil) {
+                    selectedProjectTag = nil
+                }
+                ForEach(allProjectTags, id: \.self) { tag in
+                    filterChip(tag, isSelected: selectedProjectTag == tag) {
+                        selectedProjectTag = selectedProjectTag == tag ? nil : tag
+                    }
+                }
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    private func dateSection(label: String, entries: [WinEntry]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.textSecondary)
+                .tracking(0.8)
+                .padding(.top, 4)
+
+            ForEach(entries) { entry in
+                winCard(entry)
+            }
+        }
+    }
+
+    private func winCard(_ entry: WinEntry) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            winIcon(entry.type)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.title)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                    .multilineTextAlignment(.leading)
+
+                HStack(spacing: 8) {
+                    if let tag = entry.projectTag {
+                        Text(tag)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.primaryTeal)
+                    }
+
+                    switch entry.type {
+                    case .sessionSummary(let duration, let blocks):
+                        Text("\(duration) min · \(blocks) block\(blocks == 1 ? "" : "s")")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.textSecondary)
+                    case .completedTask:
+                        Text("Task completed")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.textSecondary)
+                    case .milestone(let parent):
+                        if !parent.isEmpty {
+                            Text("from: \(parent)")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Theme.textSecondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Theme.cardBackground)
+        .clipShape(.rect(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+    }
+
+    private func winIcon(_ type: WinEntryType) -> some View {
+        let (icon, color): (String, Color) = {
+            switch type {
+            case .sessionSummary: return ("sun.max.fill", Theme.primaryTeal)
+            case .completedTask: return ("checkmark.circle.fill", .green)
+            case .milestone: return ("flag.checkered", Theme.primaryTeal.opacity(0.7))
+            }
+        }()
+        return ZStack {
+            Circle().fill(color.opacity(0.12)).frame(width: 36, height: 36)
+            Image(systemName: icon).font(.system(size: 15)).foregroundStyle(color)
+        }
+    }
+
+    private func filterChip(_ label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(isSelected ? .white : Theme.textSecondary)
+                .padding(.horizontal, 14).padding(.vertical, 8)
+                .background(isSelected ? Theme.primaryTeal : Theme.inputBackground)
+                .clipShape(Capsule())
+        }
+    }
+
+    private var noMatchState: some View {
+        VStack(spacing: 8) {
+            Text("No matches")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Theme.textPrimary)
+            Text("Try a different search or filter.")
+                .font(.system(size: 14))
+                .foregroundStyle(Theme.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "trophy")
+                .font(.system(size: 44))
+                .foregroundStyle(Theme.textSecondary.opacity(0.4))
+            VStack(spacing: 4) {
+                Text("Your wins appear here")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("Completed tasks, session summaries, and milestones all show up here.")
+                    .font(.system(size: 15))
+                    .foregroundStyle(Theme.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .padding(.horizontal, 32)
+    }
+
+    // MARK: - Data
+
+    private var allWins: [WinEntry] {
+        var entries: [WinEntry] = []
+
+        for session in storage.sessions {
+            if !session.whatWasDone.isEmpty {
+                entries.append(WinEntry(
+                    id: "sess_\(session.id)",
+                    type: .sessionSummary(duration: session.totalDuration, blocks: session.blocksCompleted),
+                    title: session.whatWasDone,
+                    projectTag: session.projectName,
+                    date: session.date
+                ))
+            }
+            for milestone in session.milestones.filter(\.isCompleted) {
+                entries.append(WinEntry(
+                    id: "ms_\(milestone.id)",
+                    type: .milestone(parent: session.startingTask),
+                    title: milestone.title,
+                    projectTag: session.projectName,
+                    date: session.date
+                ))
+            }
+        }
+
+        for task in storage.completedTasks {
+            entries.append(WinEntry(
+                id: "task_\(task.id)",
+                type: .completedTask,
+                title: task.title,
+                projectTag: task.projectTag,
+                date: task.completedAt ?? task.createdAt
+            ))
+        }
+
+        return entries.sorted { $0.date > $1.date }
+    }
+
+    private var allProjectTags: [String] {
+        Array(Set(allWins.compactMap(\.projectTag))).sorted()
+    }
+
+    private var filteredWins: [WinEntry] {
+        var result = allWins
         let calendar = Calendar.current
 
         switch selectedFilter {
@@ -20,272 +282,44 @@ struct WinsView: View {
             result = result.filter { $0.date >= start }
         }
 
-        if !searchText.isEmpty {
-            result = result.filter {
-                $0.whatWasDone.localizedStandardContains(searchText) ||
-                $0.brainDump.localizedStandardContains(searchText)
-            }
+        if let tag = selectedProjectTag {
+            result = result.filter { $0.projectTag == tag }
         }
+
+        if !searchText.isEmpty {
+            result = result.filter { $0.title.localizedStandardContains(searchText) }
+        }
+
         return result
     }
 
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Theme.backgroundMain.ignoresSafeArea()
+    private func groupedByDate(_ entries: [WinEntry]) -> [(String, [WinEntry])] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
 
-                if storage.sessions.isEmpty {
-                    emptyState
-                } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Here's everything you've done.")
-                                    .font(.system(size: 15))
-                                    .foregroundStyle(Theme.textSecondary)
-                            }
+        var groups: [(String, [WinEntry])] = []
+        var seen: [String: [WinEntry]] = [:]
+        var order: [String] = []
 
-                            HStack(spacing: 8) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundStyle(Theme.textSecondary)
-                                TextField("Search your wins", text: $searchText)
-                                    .font(.system(size: 15))
-                            }
-                            .padding(12)
-                            .background(Color(.secondarySystemBackground))
-                            .clipShape(.rect(cornerRadius: 12))
-
-                            ScrollView(.horizontal) {
-                                HStack(spacing: 8) {
-                                    ForEach(WinFilter.allCases, id: \.self) { filter in
-                                        filterChip(filter)
-                                    }
-                                }
-                            }
-                            .scrollIndicators(.hidden)
-
-                            if filteredSessions.isEmpty {
-                                VStack(spacing: 8) {
-                                    Text("No matches")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundStyle(Theme.textPrimary)
-                                    Text("Try a different search or filter.")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(Theme.textSecondary)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 40)
-                            } else {
-                                ForEach(filteredSessions) { session in
-                                    winCard(session)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.top, 8)
-                        .padding(.bottom, 24)
-                    }
-                }
+        for entry in entries {
+            let day = calendar.startOfDay(for: entry.date)
+            let label: String
+            if day == today {
+                label = "Today"
+            } else if day == yesterday {
+                label = "Yesterday"
+            } else {
+                label = entry.date.formatted(.dateTime.weekday(.wide).month(.wide).day())
             }
-            .navigationTitle("Wins")
-            .sheet(item: $selectedSession) { session in
-                sessionDetailSheet(session)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-                    .presentationContentInteraction(.scrolls)
+
+            if seen[label] == nil {
+                seen[label] = []
+                order.append(label)
             }
+            seen[label]!.append(entry)
         }
+
+        return order.map { ($0, seen[$0]!) }
     }
-
-    private func filterChip(_ filter: WinFilter) -> some View {
-        let isSelected = selectedFilter == filter
-        return Button {
-            selectedFilter = filter
-        } label: {
-            Text(filter.rawValue)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(isSelected ? .white : Theme.textSecondary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(isSelected ? Theme.primaryTeal : Color(.tertiarySystemFill))
-                .clipShape(Capsule())
-        }
-    }
-
-    private func winCard(_ session: WorkSession) -> some View {
-        Button {
-            selectedSession = session
-        } label: {
-            HStack(alignment: .top, spacing: 12) {
-                Circle()
-                    .fill(Theme.primaryTeal)
-                    .frame(width: 8, height: 8)
-                    .padding(.top, 7)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(session.date, style: .date)
-                            .font(.system(size: 13))
-                            .foregroundStyle(Theme.textSecondary)
-                        Spacer()
-                        Text("\(session.totalDuration) min · \(session.blocksCompleted) block\(session.blocksCompleted == 1 ? "" : "s")")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-
-                    if !session.whatWasDone.isEmpty {
-                        Text(session.whatWasDone)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(Theme.textPrimary)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                    }
-
-                    let completed = session.milestones.filter(\.isCompleted)
-                    if !completed.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(completed) { milestone in
-                                HStack(spacing: 6) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(Theme.primaryTeal)
-                                    Text(milestone.title)
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(Theme.textSecondary)
-                                }
-                            }
-                        }
-                    }
-
-                    if !session.nextStep.isEmpty {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 10, weight: .semibold))
-                            Text(session.nextStep)
-                                .lineLimit(1)
-                        }
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Theme.primaryTeal)
-                    }
-                }
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.white)
-            .clipShape(.rect(cornerRadius: 14))
-            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
-        }
-    }
-
-    private func sessionDetailSheet(_ session: WorkSession) -> some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    HStack {
-                        Text("Session complete")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Theme.primaryTeal)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Theme.primaryLight)
-                            .clipShape(Capsule())
-                        Spacer()
-                    }
-
-                    Text(session.date, style: .date)
-                        .font(.system(size: 15))
-                        .foregroundStyle(Theme.textSecondary)
-
-                    HStack(spacing: 12) {
-                        statItem("\(session.totalDuration)", label: "minutes")
-                        statItem("\(session.blocksCompleted)", label: "blocks")
-                    }
-
-                    if !session.whatWasDone.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("WHAT WAS DONE")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Theme.textSecondary)
-                                .tracking(0.5)
-                            Text(session.whatWasDone)
-                                .font(.system(size: 15))
-                                .foregroundStyle(Theme.textPrimary)
-                        }
-                    }
-
-                    let completed = session.milestones.filter(\.isCompleted)
-                    if !completed.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("MILESTONES COMPLETED")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Theme.textSecondary)
-                                .tracking(0.5)
-                            ForEach(completed) { milestone in
-                                HStack(spacing: 8) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundStyle(Theme.primaryTeal)
-                                    Text(milestone.title)
-                                        .font(.system(size: 15))
-                                        .foregroundStyle(Theme.textPrimary)
-                                }
-                            }
-                        }
-                    }
-
-                    if !session.nextStep.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("NEXT STEP")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(Theme.textSecondary)
-                                .tracking(0.5)
-                            Text(session.nextStep)
-                                .font(.system(size: 15))
-                                .foregroundStyle(Theme.primaryTeal)
-                        }
-                    }
-                }
-                .padding(24)
-            }
-            .navigationTitle("Session Detail")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-
-    private func statItem(_ value: String, label: String) -> some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(Theme.textPrimary)
-            Text(label)
-                .font(.system(size: 13))
-                .foregroundStyle(Theme.textSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(Theme.primaryLight)
-        .clipShape(.rect(cornerRadius: 12))
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "trophy")
-                .font(.system(size: 44))
-                .foregroundStyle(Theme.textSecondary.opacity(0.4))
-            VStack(spacing: 4) {
-                Text("Your wins appear here")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(Theme.textPrimary)
-                Text("Every completed session adds to this list.")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Theme.textSecondary)
-            }
-        }
-    }
-}
-
-nonisolated enum WinFilter: String, CaseIterable, Sendable {
-    case all = "All"
-    case thisWeek = "This week"
-    case thisMonth = "This month"
 }
