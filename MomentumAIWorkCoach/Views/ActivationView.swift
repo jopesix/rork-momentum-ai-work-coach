@@ -150,7 +150,7 @@ struct ActivationView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity)
-        .background(.white)
+        .background(Theme.cardBackground)
         .clipShape(.rect(cornerRadius: 16))
         .shadow(color: .black.opacity(0.04), radius: 12, y: 4)
     }
@@ -189,7 +189,7 @@ struct ActivationView: View {
                             }
                         }
                         .padding(12)
-                        .background(Color(.secondarySystemBackground))
+                        .background(Theme.inputBackground)
                         .clipShape(.rect(cornerRadius: 10))
                     }
 
@@ -199,7 +199,7 @@ struct ActivationView: View {
                                 .font(.system(size: 14))
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 10)
-                                .background(Color(.secondarySystemBackground))
+                                .background(Theme.inputBackground)
                                 .clipShape(.rect(cornerRadius: 10))
 
                             if !newMilestoneText.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -245,7 +245,7 @@ struct ActivationView: View {
                                 .foregroundStyle(isSelected ? .white : Theme.textPrimary)
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 10)
-                                .background(isSelected ? Theme.primaryTeal : Color(.tertiarySystemFill))
+                                .background(isSelected ? Theme.primaryTeal : Theme.inputBackground)
                                 .clipShape(Capsule())
                         }
                     }
@@ -258,7 +258,7 @@ struct ActivationView: View {
                             .foregroundStyle(isCustom ? .white : Theme.textPrimary)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 10)
-                            .background(isCustom ? Theme.primaryTeal : Color(.tertiarySystemFill))
+                            .background(isCustom ? Theme.primaryTeal : Theme.inputBackground)
                             .clipShape(Capsule())
                     }
                 }
@@ -270,7 +270,7 @@ struct ActivationView: View {
                     .font(.system(size: 16))
                     .keyboardType(.numberPad)
                     .padding(14)
-                    .background(Color(.secondarySystemBackground))
+                    .background(Theme.inputBackground)
                     .clipShape(.rect(cornerRadius: 12))
             }
         }

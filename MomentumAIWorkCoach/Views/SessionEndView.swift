@@ -77,7 +77,7 @@ struct SessionEndView: View {
                             .font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.textSecondary).tracking(0.5)
                         TextField("The one specific thing to do next time.", text: $nextStep)
                             .font(.system(size: 15)).padding(14)
-                            .background(Color(.secondarySystemBackground))
+                            .background(Theme.inputBackground)
                             .clipShape(.rect(cornerRadius: 12))
                     }
                     HStack(spacing: 16) {
@@ -150,7 +150,7 @@ struct SessionEndView: View {
                     )
                     .frame(height: 160).clipShape(.rect(cornerRadius: 12))
                 }
-                .padding(16).background(.white)
+                .padding(16).background(Theme.cardBackground)
                 .clipShape(.rect(cornerRadius: 16))
                 .shadow(color: .black.opacity(0.04), radius: 12, y: 4)
                 .padding(.horizontal, 24)
@@ -192,7 +192,7 @@ struct SessionEndView: View {
             modeButton("Speak", icon: "mic.fill", mode: .speak)
             modeButton("Type", icon: "pencil", mode: .type)
         }
-        .background(Color(.tertiarySystemFill)).clipShape(Capsule())
+        .background(Theme.inputBackground).clipShape(Capsule())
     }
 
     private func modeButton(_ label: String, icon: String, mode: InputMode) -> some View {
@@ -225,13 +225,13 @@ struct SessionEndView: View {
                 }
                 .foregroundStyle(speechService.isRecording ? .red : Theme.primaryTeal)
                 .frame(maxWidth: .infinity).padding(.vertical, 16)
-                .background(Color(.secondarySystemBackground)).clipShape(.rect(cornerRadius: 12))
+                .background(Theme.inputBackground).clipShape(.rect(cornerRadius: 12))
             }
             if !speechService.transcript.isEmpty {
                 Text(speechService.transcript)
                     .font(.system(size: 15)).foregroundStyle(Theme.textPrimary)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(12)
-                    .background(Color(.secondarySystemBackground)).clipShape(.rect(cornerRadius: 10))
+                    .background(Theme.inputBackground).clipShape(.rect(cornerRadius: 10))
             }
         }
     }
@@ -243,7 +243,7 @@ struct SessionEndView: View {
             TextEditor(text: $whatWasDone)
                 .font(.system(size: 15)).scrollContentBackground(.hidden)
                 .frame(minHeight: 80).padding(10)
-                .background(Color(.secondarySystemBackground)).clipShape(.rect(cornerRadius: 12))
+                .background(Theme.inputBackground).clipShape(.rect(cornerRadius: 12))
                 .overlay(alignment: .topLeading) {
                     if whatWasDone.isEmpty {
                         Text("Even small things count. Write it out.")

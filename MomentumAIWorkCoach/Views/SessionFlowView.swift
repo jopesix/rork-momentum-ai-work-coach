@@ -21,6 +21,28 @@ struct SessionFlowView: View {
         ZStack {
             switch currentPhase {
             case .brainDump:
+                // Back button overlay for brain dump screen
+                VStack {
+                    HStack {
+                        Button {
+                            dismiss()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Back")
+                                    .font(.system(size: 16))
+                            }
+                            .foregroundStyle(Theme.primaryTeal)
+                            .padding(.leading, 16)
+                            .padding(.top, 8)
+                        }
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .zIndex(1)
+
                 BrainDumpView(
                     carryForwardContext: storage.userProfile.lastSessionContext,
                     activeProjects: storage.activeProjects,
@@ -35,6 +57,28 @@ struct SessionFlowView: View {
                 }
 
             case .activation:
+                // Back button to return to brain dump
+                VStack {
+                    HStack {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.3)) { currentPhase = .brainDump }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Back")
+                                    .font(.system(size: 16))
+                            }
+                            .foregroundStyle(Theme.primaryTeal)
+                            .padding(.leading, 16)
+                            .padding(.top, 8)
+                        }
+                        Spacer()
+                    }
+                    Spacer()
+                }
+                .zIndex(1)
+
                 ActivationView(
                     brainDump: brainDump,
                     projectName: activeSession.projectName

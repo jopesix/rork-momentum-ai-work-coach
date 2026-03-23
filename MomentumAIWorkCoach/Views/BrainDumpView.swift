@@ -138,7 +138,7 @@ struct BrainDumpView: View {
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(isSelected ? .white : Theme.textSecondary)
                 .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(isSelected ? Theme.primaryTeal : Color(.tertiarySystemFill))
+                .background(isSelected ? Theme.primaryTeal : Theme.inputBackground)
                 .clipShape(Capsule())
         }
     }
@@ -150,7 +150,7 @@ struct BrainDumpView: View {
             modeButton("Speak", icon: "mic.fill", mode: .speak)
             modeButton("Type", icon: "pencil", mode: .type)
         }
-        .background(Color(.secondarySystemBackground))
+        .background(Theme.inputBackground)
         .clipShape(Capsule())
         .padding(.horizontal, 80)
     }
@@ -211,7 +211,7 @@ struct BrainDumpView: View {
                         .frame(maxWidth: .infinity, alignment: .leading).padding(16)
                 }
                 .frame(maxHeight: 160)
-                .background(Color(.secondarySystemBackground))
+                .background(Theme.inputBackground)
                 .clipShape(.rect(cornerRadius: 12))
                 .padding(.horizontal, 24)
             }
@@ -225,7 +225,7 @@ struct BrainDumpView: View {
             .font(.system(size: 16))
             .scrollContentBackground(.hidden)
             .padding(16).frame(maxHeight: .infinity)
-            .background(Color(.secondarySystemBackground))
+            .background(Theme.inputBackground)
             .clipShape(.rect(cornerRadius: 14))
             .overlay(alignment: .topLeading) {
                 if typedText.isEmpty {

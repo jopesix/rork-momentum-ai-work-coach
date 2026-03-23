@@ -51,7 +51,7 @@ struct CoachingProfileView: View {
                     .font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
                 TextField("What should Mo call you?", text: $name)
                     .font(.system(size: 16)).padding(14)
-                    .background(Color(.secondarySystemBackground))
+                    .background(Theme.inputBackground)
                     .clipShape(.rect(cornerRadius: 12))
             }
         }
@@ -67,7 +67,7 @@ struct CoachingProfileView: View {
                     Button { coachingStyle = style } label: {
                         HStack(spacing: 12) {
                             Circle()
-                                .fill(isSelected ? Theme.primaryTeal : Color(.tertiarySystemFill))
+                                .fill(isSelected ? Theme.primaryTeal : Theme.inputBackground)
                                 .frame(width: 20, height: 20)
                                 .overlay {
                                     if isSelected {
@@ -85,7 +85,7 @@ struct CoachingProfileView: View {
                             Spacer()
                         }
                         .padding(12)
-                        .background(isSelected ? Theme.primaryLight : Color(.secondarySystemBackground))
+                        .background(isSelected ? Theme.primaryLight : Theme.inputBackground)
                         .clipShape(.rect(cornerRadius: 10))
                     }
                 }
@@ -126,7 +126,7 @@ struct CoachingProfileView: View {
                         }
                     }
                     .padding(12)
-                    .background(Color(.secondarySystemBackground))
+                    .background(Theme.inputBackground)
                     .clipShape(.rect(cornerRadius: 10))
                 }
 
@@ -135,7 +135,7 @@ struct CoachingProfileView: View {
                         HStack(spacing: 8) {
                             TextField("Project name", text: $newProjectName)
                                 .font(.system(size: 14)).padding(.horizontal, 14).padding(.vertical, 10)
-                                .background(Color(.secondarySystemBackground))
+                                .background(Theme.inputBackground)
                                 .clipShape(.rect(cornerRadius: 10))
                             if !newProjectName.trimmingCharacters(in: .whitespaces).isEmpty {
                                 Button {
@@ -157,7 +157,7 @@ struct CoachingProfileView: View {
                             }
                             .foregroundStyle(Theme.primaryTeal)
                             .frame(maxWidth: .infinity).padding(.vertical, 12)
-                            .background(Color(.secondarySystemBackground))
+                            .background(Theme.inputBackground)
                             .clipShape(.rect(cornerRadius: 10))
                         }
                     }
@@ -176,7 +176,7 @@ struct CoachingProfileView: View {
                 TextEditor(text: $patterns)
                     .font(.system(size: 15)).scrollContentBackground(.hidden)
                     .frame(minHeight: 80).padding(12)
-                    .background(Color(.secondarySystemBackground))
+                    .background(Theme.inputBackground)
                     .clipShape(.rect(cornerRadius: 12))
                     .overlay(alignment: .topLeading) {
                         if patterns.isEmpty {
@@ -199,7 +199,7 @@ struct CoachingProfileView: View {
                 TextEditor(text: $notes)
                     .font(.system(size: 15)).scrollContentBackground(.hidden)
                     .frame(minHeight: 80).padding(12)
-                    .background(Color(.secondarySystemBackground))
+                    .background(Theme.inputBackground)
                     .clipShape(.rect(cornerRadius: 12))
                     .overlay(alignment: .topLeading) {
                         if notes.isEmpty {

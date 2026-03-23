@@ -50,7 +50,7 @@ struct SettingsView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
             }
-            .background(.white)
+            .background(Theme.cardBackground)
             .clipShape(.rect(cornerRadius: 12))
         }
     }
@@ -136,7 +136,7 @@ struct SettingsView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
-            .background(.white)
+            .background(Theme.cardBackground)
             .clipShape(.rect(cornerRadius: 12))
         }
     }
@@ -166,7 +166,7 @@ struct SettingsView: View {
                     .foregroundStyle(Theme.textSecondary)
                     .padding(16)
             }
-            .background(.white)
+            .background(Theme.cardBackground)
             .clipShape(.rect(cornerRadius: 12))
         }
     }

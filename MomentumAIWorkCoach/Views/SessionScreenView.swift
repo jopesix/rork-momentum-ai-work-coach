@@ -101,7 +101,7 @@ struct SessionScreenView: View {
                     .foregroundStyle(Theme.textSecondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color(.tertiarySystemFill))
+                    .background(Theme.inputBackground)
                     .clipShape(Capsule())
             }
         }
@@ -137,7 +137,7 @@ struct SessionScreenView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(milestone.isCompleted ? Theme.primaryLight : Color(.secondarySystemBackground))
+            .background(milestone.isCompleted ? Theme.primaryLight : Theme.inputBackground)
             .clipShape(Capsule())
             .opacity(milestone.isCompleted ? 0.7 : 1)
         }
@@ -210,7 +210,7 @@ struct SessionScreenView: View {
                                         .font(.system(size: 13, weight: .medium))
                                         .foregroundStyle(isSelected ? .white : Theme.textSecondary)
                                         .padding(.horizontal, 14).padding(.vertical, 8)
-                                        .background(isSelected ? Theme.primaryTeal : Color(.tertiarySystemFill))
+                                        .background(isSelected ? Theme.primaryTeal : Theme.inputBackground)
                                         .clipShape(Capsule())
                                 }
                             }
@@ -281,7 +281,7 @@ struct SessionScreenView: View {
             }
         }
         .padding(16).frame(maxWidth: .infinity)
-        .background(.white).clipShape(.rect(cornerRadius: 16))
+        .background(Theme.cardBackground).clipShape(.rect(cornerRadius: 16))
         .shadow(color: .black.opacity(0.04), radius: 12, y: 4)
     }
 
@@ -305,7 +305,7 @@ struct SessionScreenView: View {
                         .foregroundStyle(Theme.textSecondary)
                 }
             }
-            .padding(16).background(.white)
+            .padding(16).background(Theme.cardBackground)
             .clipShape(.rect(cornerRadius: 14))
             .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
             .padding(.horizontal, 16).padding(.top, 8)
@@ -346,7 +346,7 @@ struct SessionScreenView: View {
                             Image(systemName: "chevron.right").font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
                         }
                         .padding(.horizontal, 18).padding(.vertical, 16)
-                        .background(Color(.secondarySystemBackground))
+                        .background(Theme.inputBackground)
                         .clipShape(.rect(cornerRadius: 12))
                     }
                 }
